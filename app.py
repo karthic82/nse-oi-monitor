@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import requests
-import time
 from datetime import datetime
 
 # --- Page Configuration for Mobile ---
@@ -66,15 +65,14 @@ def get_option_chain(symbol):
     except Exception as e:
         return None, str(e)
 
-# --- User Input ---
-col1, col2 = st.columns([3, 1])
-with col1:
-    symbol = st.text_input("Symbol", value="NIFTY").upper()
-with col2:
-    refresh = st.form_submit_button("🔄 Fetch")
+# --- User Input with Proper Form ---
+symbol = st.text_input("Symbol", value="NIFTY").upper()
+
+with st.form("fetch_form"):
+    submit_button = st.form_submit_button(" Fetch Data")
 
 # --- Main Logic ---
-if refresh or 'data' not in st.session_state:
+if submit_button:
     if symbol:
         with st.spinner('Fetching data from NSE...'):
             df, status = get_option_chain(symbol)
@@ -83,6 +81,7 @@ if refresh or 'data' not in st.session_state:
                 st.session_state['data'] = df
                 st.session_state['underlying'] = status
                 st.session_state['time'] = datetime.now().strftime("%H:%M:%S")
+                st.success("✅ Data fetched successfully!")
             else:
                 st.error(f"❌ {status}")
                 st.stop()
@@ -102,18 +101,16 @@ if 'data' in st.session_state:
     st.divider()
     
     # Tabs for CE and PE
-    tab1, tab2 = st.tabs(["🔴 Max Pain / CE OI", "🟢 PE OI / Support"])
+    tab1, tab2 = st.tabs(["🔴 Call OI (Resistance)", "🟢 Put OI (Support)"])
     
     with tab1:
-        st.subheader("Top Call Writers (Resistance)")
-        # Sort by CE OI
+        st.subheader("Top Call Writers")
         ce_top = df.nlargest(10, 'CE_openInterest')[['strikePrice', 'CE_openInterest', 'CE_changeinOI', 'PCR']]
         ce_top.columns = ["Strike", "Call OI", "Call Chg", "PCR"]
         st.dataframe(ce_top, use_container_width=True, hide_index=True)
         
     with tab2:
-        st.subheader("Top Put Writers (Support)")
-        # Sort by PE OI
+        st.subheader("Top Put Writers")
         pe_top = df.nlargest(10, 'PE_openInterest')[['strikePrice', 'PE_openInterest', 'PE_changeinOI', 'PCR']]
         pe_top.columns = ["Strike", "Put OI", "Put Chg", "PCR"]
         st.dataframe(pe_top, use_container_width=True, hide_index=True)
